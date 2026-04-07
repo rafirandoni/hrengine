@@ -32,13 +32,13 @@ func scanError(err error) error {
 	}
 }
 
-func (slf *BaseRepository[ENTITY]) FindAll(condition *func(bun.QueryBuilder) bun.QueryBuilder, options ...map[string]any) ([]*ENTITY, error) {
+func (slf *BaseRepository[ENTITY]) FindAll(condition func(bun.QueryBuilder) bun.QueryBuilder, options ...map[string]any) ([]*ENTITY, error) {
 	result := make([]*ENTITY, 0)
 	query := slf.DBClient.ConnReader().NewSelect().
 		Table(slf.Table)
 
 	if condition != nil {
-		query = query.ApplyQueryBuilder(*condition)
+		query = query.ApplyQueryBuilder(condition)
 	}
 
 	withTrashed := false
@@ -82,7 +82,7 @@ func (slf *BaseRepository[ENTITY]) FindAll(condition *func(bun.QueryBuilder) bun
 	return result, nil
 }
 
-func (slf *BaseRepository[ENTITY]) FindOne(condition *func(bun.QueryBuilder) bun.QueryBuilder) (*ENTITY, error) {
+func (slf *BaseRepository[ENTITY]) FindOne(condition func(bun.QueryBuilder) bun.QueryBuilder) (*ENTITY, error) {
 	if condition == nil {
 		return nil, nil
 	}
@@ -91,7 +91,7 @@ func (slf *BaseRepository[ENTITY]) FindOne(condition *func(bun.QueryBuilder) bun
 	query := slf.DBClient.ConnReader().NewSelect().
 		Model(result).
 		Limit(1).
-		ApplyQueryBuilder(*condition)
+		ApplyQueryBuilder(condition)
 
 	err := query.Scan(context.Background())
 	if err != nil {
@@ -101,12 +101,12 @@ func (slf *BaseRepository[ENTITY]) FindOne(condition *func(bun.QueryBuilder) bun
 	return result, nil
 }
 
-func (slf *BaseRepository[ENTITY]) Count(condition *func(bun.QueryBuilder) bun.QueryBuilder) (int, error) {
+func (slf *BaseRepository[ENTITY]) Count(condition func(bun.QueryBuilder) bun.QueryBuilder) (int, error) {
 	query := slf.DBClient.ConnReader().NewSelect().
 		Table(slf.Table)
 
 	if condition != nil {
-		query = query.ApplyQueryBuilder(*condition)
+		query = query.ApplyQueryBuilder(condition)
 	}
 
 	count, err := query.Count(context.Background())
@@ -153,7 +153,7 @@ func (slf *BaseRepository[ENTITY]) StoreReturn(e *ENTITY, returnField string) (a
 	return returnValue, nil
 }
 
-func (slf *BaseRepository[ENTITY]) Update(condition *func(bun.QueryBuilder) bun.QueryBuilder, param map[string]any) error {
+func (slf *BaseRepository[ENTITY]) Update(condition func(bun.QueryBuilder) bun.QueryBuilder, param map[string]any) error {
 	if condition == nil {
 		return errors.New("cannot update without condition")
 	}
@@ -161,7 +161,7 @@ func (slf *BaseRepository[ENTITY]) Update(condition *func(bun.QueryBuilder) bun.
 	_, err := slf.DBClient.ConnWriter().NewUpdate().
 		Table(slf.Table).
 		Model(&param).
-		ApplyQueryBuilder(*condition).
+		ApplyQueryBuilder(condition).
 		Exec(context.Background())
 
 	return err
@@ -174,7 +174,7 @@ func (slf *BaseRepository[ENTITY]) Delete(condition func(bun.QueryBuilder) bun.Q
 	}
 
 	if useSoftDelete {
-		return slf.Update(&condition, map[string]any{"deleted_at": utility.TimeNow()})
+		return slf.Update(condition, map[string]any{"deleted_at": utility.TimeNow()})
 	}
 
 	_, err := slf.DBClient.ConnWriter().NewDelete().
