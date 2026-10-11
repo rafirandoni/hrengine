@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"runtime/debug"
 
 	"github.com/rafirandoni/hrengine/db"
 	"github.com/rafirandoni/hrengine/utility"
@@ -29,6 +30,7 @@ func scanError(err error) error {
 	return &utility.ResError{
 		StatusCode: utility.ToPointer(http.StatusInternalServerError),
 		Err:        err,
+		StackTrace: utility.ToPointer(string(debug.Stack())),
 	}
 }
 
@@ -82,7 +84,7 @@ func (slf *BaseRepository[ENTITY]) FindAll(condition func(bun.QueryBuilder) bun.
 	return result, nil
 }
 
-func (slf *BaseRepository[ENTITY]) FindOne(condition func(bun.QueryBuilder) bun.QueryBuilder) (*ENTITY, error) {
+func (slf *BaseRepository[ENTITY]) FindOne(condition func(bun.QueryBuilder) bun.QueryBuilder, options ...map[string]any) (*ENTITY, error) {
 	if condition == nil {
 		return nil, nil
 	}
@@ -92,6 +94,39 @@ func (slf *BaseRepository[ENTITY]) FindOne(condition func(bun.QueryBuilder) bun.
 		Model(result).
 		Limit(1).
 		ApplyQueryBuilder(condition)
+
+	withTrashed := false
+	if len(options) > 0 {
+		option := options[0]
+		if orderBy, ok := option["order_by"]; ok {
+			query = query.OrderExpr(orderBy.(string))
+		}
+
+		if limit, ok := option["limit"]; ok {
+			query = query.Limit(limit.(int))
+		}
+
+		if offset, ok := option["offset"]; ok {
+			query = query.Offset(offset.(int))
+		}
+
+		if group_by, ok := option["group_by"]; ok {
+			query = query.GroupExpr(group_by.(string))
+		}
+
+		if _, ok := option["with_trashed"]; ok {
+			withTrashed = true
+		}
+	}
+
+	useSoftDelete := true
+	if slf.UseSoftDelete != nil {
+		useSoftDelete = *slf.UseSoftDelete
+	}
+
+	if !withTrashed && useSoftDelete {
+		query = query.Where("deleted_at IS NULL")
+	}
 
 	err := query.Scan(context.Background())
 	if err != nil {
@@ -130,7 +165,7 @@ func (slf *BaseRepository[ENTITY]) Store(e *ENTITY) error {
 
 func (slf *BaseRepository[ENTITY]) StoreBulk(e []*ENTITY) error {
 	_, err := slf.DBClient.ConnWriter().NewInsert().
-		Model(e).
+		Model(&e).
 		Exec(context.Background())
 	if err != nil {
 		return scanError(err)

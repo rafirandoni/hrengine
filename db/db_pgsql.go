@@ -63,6 +63,13 @@ func NewDBClientPostgres(config *DBConfig) (DBClient, error) {
 		dsnWriter := "postgres://" + config.Write.Username + ":" + config.Write.Password + "@" + config.Write.Host + ":" +
 			strconv.Itoa(config.Write.Port) + "/" + config.Write.DBName + "?sslmode=disable"
 
+		if config.Read.Schema != "" && config.Read.Schema != "public" {
+			dsnReader += "&search_path=" + config.Read.Schema
+		}
+		if config.Write.Schema != "" && config.Write.Schema != "public" {
+			dsnWriter += "&search_path=" + config.Write.Schema
+		}
+
 		dbReader, err := createDB(dsnReader)
 		if err != nil {
 			return nil, err

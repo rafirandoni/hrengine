@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"runtime/debug"
 
@@ -133,6 +134,10 @@ func (slf *web) RFail(ctx fiber.Ctx, err error) error {
 
 	if !res.Metadata.Success && res.Debug == nil {
 		res.Debug = utility.ToPointer(string(debug.Stack()))
+	}
+
+	if res.Debug != nil {
+		log.Printf("%s\n%+v", err.Error(), *res.Debug.(*string))
 	}
 
 	ctx.Set("Content-Type", fiber.MIMEApplicationJSON)

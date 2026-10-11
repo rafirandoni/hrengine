@@ -67,6 +67,23 @@ func TernaryFB[T any](condition bool, a T, b func() T) T {
 	return b()
 }
 
+func Default[T comparable](val *T, defaultVal T) T {
+	if val == nil {
+		return defaultVal
+	}
+
+	v := reflect.TypeOf(val)
+	elm := v.Elem()
+	switch elm.Kind() {
+	case reflect.String:
+		if elm.Size() == 0 {
+			return defaultVal
+		}
+	}
+
+	return *val
+}
+
 func GetRootDir() string {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)

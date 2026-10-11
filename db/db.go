@@ -32,6 +32,7 @@ type DBConfigCredential struct {
 	Port     int
 	DBName   string
 	Path     string // when using sqlite, file path need to be specified here
+	Schema   string
 }
 
 const (
